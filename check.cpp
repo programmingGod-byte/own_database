@@ -27,9 +27,6 @@ int main(int argc, char const *argv[])
         cout << typeToString(token->TYPE) << " : " << token->VALUE << endl;
     }
 
-    for (Token* token : tokens) {
-        delete token;
-    }
 
     return 0;
 }

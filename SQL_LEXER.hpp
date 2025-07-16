@@ -164,8 +164,10 @@ private:
     char current;
     int lineNumber;
     int characterNumber;
+    
 
 public:
+    std::vector<Token *> tokens;
     Lexer(std::string sourceCode)
     {
         source = sourceCode;
@@ -174,7 +176,14 @@ public:
         current = (size > 0) ? sourceCode.at(cursor) : '\0';
         lineNumber = 1;
         characterNumber = 1;
+        
+
     };
+    ~Lexer(){
+        for(auto token : tokens){
+            delete token;
+        }
+    }
 
     std::pair<bool, Token *> checkSingleCharToken()
     {
@@ -326,7 +335,6 @@ public:
 
     std::vector<Token *> tokenize()
     {
-        std::vector<Token *> tokens;
 
         while (cursor < size)
         {
