@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include "SQL_LEXER.hpp"
-
+#include "SQL_PARSER.hpp"
 using namespace std;
 
 std::string typeToString(TokenType TYPE); 
@@ -14,9 +14,7 @@ int main(int argc, char const *argv[])
     FROM users 
     WHERE age >= 18 AND status != 'inactive' OR (country = 'USA' AND subscribed = true) 
     ORDERBY age 
-    INSERT INTO logs (event, created_at) VALUES ('login', '2025-07-13') 
-    UPDATE users SET last_login = '2025-07-13' WHERE id = 123 
-    DELETE FROM sessions WHERE expires < '2025-01-01'
+    
 )";
 
     Lexer lexer(s);
@@ -27,6 +25,11 @@ int main(int argc, char const *argv[])
         cout << typeToString(token->TYPE) << " : " << token->VALUE << endl;
     }
 
+     Parser parser(tokens);
+      std::unique_ptr<SelectStatement> stmt = parser.parseSelectStatement();
+
+        // Step 4: Print the AST
+        parser.printSelectStatement(stmt.get());
 
     return 0;
 }
