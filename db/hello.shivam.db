@@ -1,0 +1,94 @@
+[
+  {
+    "name": "hello",
+    "tables": [
+      {
+        "columns": [
+          {
+            "constraints": [
+              "primary_key",
+              "auto_increment"
+            ],
+            "name": "id",
+            "type": "int"
+          },
+          {
+            "constraints": [
+              "not_null"
+            ],
+            "length": 255,
+            "name": "name",
+            "type": "varchar"
+          },
+          {
+            "constraints": [
+              "unique"
+            ],
+            "length": 255,
+            "name": "email",
+            "type": "varchar"
+          }
+        ],
+        "name": "users"
+      },
+      {
+        "columns": [
+          {
+            "constraints": [
+              "primary_key",
+              "auto_increment"
+            ],
+            "name": "id",
+            "type": "int"
+          },
+          {
+            "constraints": [
+              "not_null"
+            ],
+            "length": 255,
+            "name": "name",
+            "type": "varchar"
+          },
+          {
+            "constraints": [
+              "unique"
+            ],
+            "length": 255,
+            "name": "email",
+            "type": "varchar"
+          }
+        ],
+        "name": "h"
+      },
+      {
+        "columns": [
+          {
+            "constraints": [
+              "primary_key",
+              "auto_increment"
+            ],
+            "name": "id",
+            "type": "int"
+          },
+          {
+            "constraints": [
+              "not_null"
+            ],
+            "length": 255,
+            "name": "name",
+            "type": "varchar"
+          },
+          {
+            "constraints": [
+              "unique"
+            ],
+            "length": 255,
+            "name": "email",
+            "type": "varchar"
+          }
+        ],
+        "name": "a"
+      }
+    ]
+  }
+]

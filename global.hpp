@@ -4,7 +4,7 @@
 
 #include <string>
 
-std::string currentDatabase;
-std::string currentDbPath = "./db/current_db.meta"
+inline std::string currentDbPath = "db/current_db.meta";
+inline std::string currentDatabase = ""; // or initialize to "default" etc.
 
 #endif // GLOBALS_HPP

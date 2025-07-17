@@ -3,8 +3,7 @@
 #include <vector>
 #include "SQL_LEXER.hpp"
 #include "SQL_PARSER.hpp"
-#include "json.hpp"
-#include "meta_data.hpp"
+
 using namespace std;
 
 std::string typeToString(TokenType TYPE); // already declared
@@ -12,7 +11,12 @@ std::string typeToString(TokenType TYPE); // already declared
 int main(int argc, char const *argv[]) {
     vector<string> testSQLs = {
       
-        R"(create database hello)",
+        R"(CREATE TABLE a (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE
+);
+)",
 
     };
 
