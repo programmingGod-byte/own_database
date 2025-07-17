@@ -7,6 +7,17 @@
 #include <memory>
 #include <stdexcept>
 #include "SQL_LEXER.hpp"
+#include <filesystem> // Include for std::filesystem
+#include <fstream>
+#include "json.hpp"
+#include "global.hpp"
+#include "utility.hpp"
+namespace fs = std::filesystem; // Shorthand for std::filesystem
+
+bool fileExists(const std::string &filename)
+{
+    return fs::exists(filename);
+}
 
 enum class ASTNodeType
 {
@@ -235,7 +246,74 @@ private:
     }
 
 public:
-    Parser(const std::vector<Token *> &tokens) : tokens(tokens) {}
+    std::string currentDb = "";
+    Parser(const std::vector<Token *> &tokens) : tokens(tokens)
+    {
+        ensureCurrentDbFile("db/current_db.meta");
+    }
+
+    void ensureCurrentDbFile(const std::string &filePath)
+    {
+        fs::path parentDir = fs::path(filePath).parent_path();
+        if (!parentDir.empty() && !fs::exists(parentDir))
+        {
+            std::error_code ec;
+            if (fs::create_directories(parentDir, ec))
+            {
+                std::cout << "Created directory: " << parentDir << std::endl;
+            }
+            else
+            {
+                throw std::runtime_error("Error creating directory: " + ec.message());
+            }
+        }
+
+        if (!fs::exists(filePath))
+        {
+            std::ofstream outfile(filePath);
+            if (outfile.is_open())
+            {
+                outfile << "{\"current_db\":\"test\"}" << std::endl; // JSON-style default
+                std::cout << "File '" << filePath << "' created and initialized." << std::endl;
+                outfile.close();
+                currentDatabase = "test";
+            }
+            else
+            {
+                throw std::runtime_error("Error: Could not create file '" + filePath + "'");
+            }
+        }
+        else
+        {
+            std::cout << "hfffffffffff\n";
+            std::ifstream in(filePath);
+            std::stringstream buffer;
+            buffer << in.rdbuf();
+            in.close();
+            std::string jsonContent = buffer.str();
+
+            JSONParser jsonParser;
+            if (!jsonParser.appendFromString(jsonContent))
+            {
+                throw std::runtime_error("Failed to parse current_db.meta JSON.");
+            }
+            JSONParser::JSONValue obj = jsonParser.getObject(0);
+
+            if (std::holds_alternative<JSONParser::JSONObject>(obj.value))
+            {
+                auto jsonObj = std::get<JSONParser::JSONObject>(obj.value);
+                if (jsonObj.find("current_db") != jsonObj.end())
+                {
+                    const auto &val = jsonObj["current_db"];
+                    if (std::holds_alternative<std::string>(val.value))
+                    {
+                        this->currentDb = std::get<std::string>(val.value); // store it inside parser
+                        currentDatabase = this->currentDb;
+                    }
+                }
+            }
+        }
+    }
 
     std::unique_ptr<InsertStatement> parseInsertStatement()
     {
@@ -362,6 +440,29 @@ public:
         {
             stmt->isDatabase = true;
             stmt->name = expect(TokenType::IDENTIFIER, "Expected database name")->VALUE;
+            std::stringstream filename;
+            filename << "./db/";
+            filename << stmt->name;
+            filename << ".shivam.db";
+
+            if (MyUtility::checkIfFileExist(filename.str()))
+            {
+                throw std::runtime_error("Database already exists");
+            }
+            else
+            {
+                std::stringstream s;
+                s << R"(
+{
+  "name": ")" << stmt->name
+                  << R"(",
+  "tables": []
+}
+)";
+                MyUtility::createFile(filename.str(), s.str());
+                currentDatabase = stmt->name;
+                MyUtility::changeCurrentDb(currentDatabase);
+            }
         }
         else
         {
@@ -631,7 +732,7 @@ public:
         {
             rewind();
             auto stmt = parseSelectStatement();
-            printSelectStatement(*stmt);
+            // printSelectStatement(*stmt);
         }
         else
         {

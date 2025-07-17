@@ -1,0 +1,71 @@
+[
+  {
+    "database": "updated_mydb",
+    "tables": [
+      {
+        "columns": [
+          {
+            "constraints": [
+              "primary_key",
+              "auto_increment"
+            ],
+            "name": "id",
+            "type": "int"
+          },
+          {
+            "constraints": [
+              "not_null"
+            ],
+            "length": 100,
+            "name": "name",
+            "type": "varchar"
+          },
+          {
+            "constraints": [
+              "unique"
+            ],
+            "length": 255,
+            "name": "email",
+            "type": "varchar"
+          },
+          {
+            "constraints": [
+              "default_current_timestamp"
+            ],
+            "name": "created_at",
+            "type": "timestamp"
+          }
+        ],
+        "name": "users"
+      },
+      {
+        "columns": [
+          {
+            "constraints": [
+              "primary_key",
+              "auto_increment"
+            ],
+            "name": "id",
+            "type": "int"
+          },
+          {
+            "constraints": [
+              "not_null"
+            ],
+            "length": 200,
+            "name": "product_name",
+            "type": "varchar"
+          },
+          {
+            "constraints": [
+              "not_null"
+            ],
+            "name": "price",
+            "type": "decimal"
+          }
+        ],
+        "name": "products"
+      }
+    ]
+  }
+]

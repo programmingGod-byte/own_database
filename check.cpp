@@ -3,32 +3,16 @@
 #include <vector>
 #include "SQL_LEXER.hpp"
 #include "SQL_PARSER.hpp"
+#include "json.hpp"
+#include "meta_data.hpp"
 using namespace std;
 
 std::string typeToString(TokenType TYPE); // already declared
 
 int main(int argc, char const *argv[]) {
     vector<string> testSQLs = {
-        R"(CREATE TABLE users (
-            id INT NOT NULL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            email VARCHAR(100) UNIQUE
-        );)",
-
-        R"(INSERT INTO users (
-            name,
-            age,
-            email
-        ) VALUES (
-            'Alice',
-            30,
-            'alice@example.com'
-        );)",
-
-        R"(SELECT name, age, email FROM users 
-           WHERE age >= 18 AND status != 'inactive' 
-           OR (country = 'USA' AND subscribed = 1)
-           ORDERBY age;)",
+      
+        R"(create database hello)",
 
     };
 
