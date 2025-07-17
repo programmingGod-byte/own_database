@@ -28,6 +28,10 @@ enum class TokenType
     NOT,
     ORDER,
     BY,
+    DROP,
+    DATABASE,
+    ORDERBY,
+    TABLE,
 
     // Literals
     IDENTIFIER,
@@ -77,7 +81,11 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"or", TokenType::OR},
     {"not", TokenType::NOT},
     {"order", TokenType::ORDER},
-    {"by", TokenType::BY}
+    {"by", TokenType::BY},
+    {"drop",TokenType::DROP},
+    {"database",TokenType::DATABASE},
+    {"orderby",TokenType::ORDERBY},
+    {"table",TokenType::TABLE}
 };
 
 static const std::unordered_map<char, TokenType> singleCharTokens = {

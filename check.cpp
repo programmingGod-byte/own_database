@@ -12,7 +12,7 @@ int main(int argc, char const *argv[])
    string s = R"(
     SELECT name, age, email 
     FROM users 
-    WHERE age >= 18 AND status != 'inactive' OR (country = 'USA' AND subscribed = true) 
+    WHERE age >= 18 AND status != 'inactive' OR (country = 'USA' AND subscribed = 1) 
     ORDERBY age 
     
 )";
@@ -28,7 +28,7 @@ int main(int argc, char const *argv[])
      Parser parser(tokens);
       std::unique_ptr<SelectStatement> stmt = parser.parseSelectStatement();
 
-        // Step 4: Print the AST
+    
         parser.printSelectStatement(stmt.get());
 
     return 0;

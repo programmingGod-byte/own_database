@@ -24,7 +24,8 @@ enum class ASTNodeType
     LOGICAL_EXPRESSION,
     PARENTHESIZED_EXPRESSION,
     LIMIT_CLAUSE,
-    WHERE_CLAUSE
+    WHERE_CLAUSE,
+    DROP_STATEMENT,
 };
 
 enum class LogicalOperator
@@ -136,6 +137,27 @@ struct SelectStatement : public ASTNode
     ASTNodeType getType() const override { return ASTNodeType::SELECT_STATEMENT; }
 };
 
+struct DropStatement:public ASTNode{
+    bool istable;
+    std::string name;
+    
+    
+    ASTNodeType getType() const override { return ASTNodeType::DROP_STATEMENT; }
+
+};
+
+
+
+struct CreateStatement:public ASTNode{
+    bool isDatabase;
+    std::string name;
+
+    
+    
+    ASTNodeType getType() const override { return ASTNodeType::DROP_STATEMENT; }
+
+};
+
 // ==== Parser ====
 
 class Parser
@@ -186,6 +208,33 @@ private:
 
 public:
     Parser(const std::vector<Token *> &tokens) : tokens(tokens) {}
+
+
+    std::unique_ptr<DropStatement> parseDropStatement(){
+        expect(TokenType::DROP,"Expected drop keyword");
+        auto stmt = std::make_unique<DropStatement>();
+        Token * token = advance();
+        switch (token->TYPE)
+        {
+        case TokenType::TABLE:{
+            Token * identifier = expect(TokenType::IDENTIFIER,"not a identifier\n");
+            stmt->name = identifier->VALUE;
+            stmt->istable = true;
+        }
+            
+            break;
+        case TokenType::DATABASE:{
+            Token * identifier = expect(TokenType::IDENTIFIER,"not a identifier\n");
+            stmt->name = identifier->VALUE;
+            stmt->istable = false;
+        }
+            
+        default:
+            std::runtime_error("error in drop ");
+        }
+        return stmt;
+    }
+
 
     std::unique_ptr<SelectStatement> parseSelectStatement()
     {
