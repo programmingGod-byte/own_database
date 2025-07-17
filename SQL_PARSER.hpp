@@ -173,6 +173,13 @@ struct CreateStatement : public ASTNode
     ASTNodeType getType() const override { return ASTNodeType::CREATE_STATEMENT; }
 };
 
+struct InsertStatement
+{
+    std::string tableName;
+    std::vector<std::string> columns;
+    std::vector<std::string> values;
+};
+
 // ==== Parser ====
 
 class Parser
@@ -204,6 +211,12 @@ private:
         return tokens[position - 1];
     }
 
+    void rewind()
+    {
+        if (position > 0)
+            position--;
+    }
+
     bool match(TokenType expected)
     {
         if (current() && current()->TYPE == expected)
@@ -224,73 +237,139 @@ private:
 public:
     Parser(const std::vector<Token *> &tokens) : tokens(tokens) {}
 
-    
-    std::unique_ptr<CreateStatement> parseCreateStatement() {
-    expect(TokenType::CREATE, "Expected CREATE keyword");
-    std::unique_ptr<CreateStatement> stmt = std::make_unique<CreateStatement>();
+    std::unique_ptr<InsertStatement> parseInsertStatement()
+    {
+        expect(TokenType::INSERT, "Expected 'INSERT'");
+        expect(TokenType::INTO, "Expected 'INTO'");
 
-    if (match(TokenType::TABLE)) {
-        Token *tableName = expect(TokenType::IDENTIFIER, "Expected table name");
-        stmt->name = tableName->VALUE;
+        Token *tableToken = expect(TokenType::IDENTIFIER, "Expected table name");
+        std::unique_ptr<InsertStatement> stmt = std::make_unique<InsertStatement>();
+        stmt->tableName = tableToken->VALUE;
 
-        expect(TokenType::OPEN_PAREN, "Expected '(' after table name");
+        expect(TokenType::OPEN_PAREN, "Expected '(' before column list");
 
-        while (!match(TokenType::CLOSE_PAREN)) {
-            Token *colName = expect(TokenType::IDENTIFIER, "Expected column name");
+        // Parse columns
+        do
+        {
+            Token *col = expect(TokenType::IDENTIFIER, "Expected column name");
+            stmt->columns.push_back(col->VALUE);
+        } while (match(TokenType::COMMA));
 
-            Token *typeToken = current();
-            if (match(TokenType::INT) || match(TokenType::VARCHAR)) {
-                typeToken = previous();
-            } else {
-                throw std::runtime_error("Parse error: Expected column type (int or varchar)");
+        expect(TokenType::CLOSE_PAREN, "Expected ')' after column list");
+
+        expect(TokenType::VALUES, "Expected 'VALUES'");
+        expect(TokenType::OPEN_PAREN, "Expected '(' before values");
+
+        // Parse values
+        do
+        {
+            if (match(TokenType::STRING) || match(TokenType::NUMBER))
+            {
+                stmt->values.push_back(previous()->VALUE);
             }
-
-            ColumnDefinition column(colName->VALUE, typeToken->VALUE);
-
-            // Handle VARCHAR(255) size syntax
-            if (typeToken->TYPE == TokenType::VARCHAR && match(TokenType::OPEN_PAREN)) {
-                Token *size = expect(TokenType::NUMBER, "Expected size in VARCHAR()");
-                expect(TokenType::CLOSE_PAREN, "Expected ')' after VARCHAR size");
-                column.type += "(" + size->VALUE + ")";
+            else
+            {
+                throw std::runtime_error("Expected a STRING in quotes or a NUMBER");
             }
+        } while (match(TokenType::COMMA));
 
-            // Parse optional constraints
-            while (true) {
-                if (match(TokenType::NOT)) {
-                    expect(TokenType::NULL_T, "Expected NULL after NOT");
-                    column.constraints.push_back(ColumnConstraint::NOT_NULL);
-                } else if (match(TokenType::PRIMARY)) {
-                    expect(TokenType::KEY, "Expected KEY after PRIMARY");
-                    column.constraints.push_back(ColumnConstraint::PRIMARY_KEY);
-                } else if (match(TokenType::AUTO_INCREMENT)) {
-                    column.constraints.push_back(ColumnConstraint::AUTO_INCREMENT);
-                } else if (match(TokenType::UNIQUE)) {
-                    column.constraints.push_back(ColumnConstraint::UNIQUE);
-                } else {
-                    break;
-                }
-            }
+        expect(TokenType::CLOSE_PAREN, "Expected ')' after values");
+        expect(TokenType::SEMICOLON, "Expected ';' at end");
 
-            stmt->columns.push_back(column);
-
-            if (match(TokenType::COMMA)) {
-                continue;
-            } else if (peek()->TYPE == TokenType::CLOSE_PAREN) {
-                continue;
-            } else {
-                throw std::runtime_error("Expected ',' or ')' in column list");
-            }
-        }
-    } else if (match(TokenType::DATABASE)) {
-        stmt->isDatabase = true;
-        stmt->name = expect(TokenType::IDENTIFIER, "Expected database name")->VALUE;
-    } else {
-        throw std::runtime_error("Expected TABLE or DATABASE keyword");
+        return stmt;
     }
 
-    return stmt;
-}
+    std::unique_ptr<CreateStatement> parseCreateStatement()
+    {
+        expect(TokenType::CREATE, "Expected CREATE keyword");
+        std::unique_ptr<CreateStatement> stmt = std::make_unique<CreateStatement>();
 
+        if (match(TokenType::TABLE))
+        {
+            Token *tableName = expect(TokenType::IDENTIFIER, "Expected table name");
+            stmt->name = tableName->VALUE;
+
+            expect(TokenType::OPEN_PAREN, "Expected '(' after table name");
+
+            while (!match(TokenType::CLOSE_PAREN))
+            {
+                Token *colName = expect(TokenType::IDENTIFIER, "Expected column name");
+
+                Token *typeToken = current();
+                if (match(TokenType::INT) || match(TokenType::VARCHAR))
+                {
+                    typeToken = previous();
+                }
+                else
+                {
+                    throw std::runtime_error("Parse error: Expected column type (int or varchar)");
+                }
+
+                ColumnDefinition column(colName->VALUE, typeToken->VALUE);
+
+                // Handle VARCHAR(255) size syntax
+                if (typeToken->TYPE == TokenType::VARCHAR && match(TokenType::OPEN_PAREN))
+                {
+                    Token *size = expect(TokenType::NUMBER, "Expected size in VARCHAR()");
+                    expect(TokenType::CLOSE_PAREN, "Expected ')' after VARCHAR size");
+                    column.type += "(" + size->VALUE + ")";
+                }
+
+                // Parse optional constraints
+                while (true)
+                {
+                    if (match(TokenType::NOT))
+                    {
+                        expect(TokenType::NULL_T, "Expected NULL after NOT");
+                        column.constraints.push_back(ColumnConstraint::NOT_NULL);
+                    }
+                    else if (match(TokenType::PRIMARY))
+                    {
+                        expect(TokenType::KEY, "Expected KEY after PRIMARY");
+                        column.constraints.push_back(ColumnConstraint::PRIMARY_KEY);
+                    }
+                    else if (match(TokenType::AUTO_INCREMENT))
+                    {
+                        column.constraints.push_back(ColumnConstraint::AUTO_INCREMENT);
+                    }
+                    else if (match(TokenType::UNIQUE))
+                    {
+                        column.constraints.push_back(ColumnConstraint::UNIQUE);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                stmt->columns.push_back(column);
+
+                if (match(TokenType::COMMA))
+                {
+                    continue;
+                }
+                else if (peek()->TYPE == TokenType::CLOSE_PAREN)
+                {
+                    continue;
+                }
+                else
+                {
+                    throw std::runtime_error("Expected ',' or ')' in column list");
+                }
+            }
+        }
+        else if (match(TokenType::DATABASE))
+        {
+            stmt->isDatabase = true;
+            stmt->name = expect(TokenType::IDENTIFIER, "Expected database name")->VALUE;
+        }
+        else
+        {
+            throw std::runtime_error("Expected TABLE or DATABASE keyword");
+        }
+
+        return stmt;
+    }
 
     std::unique_ptr<DropStatement> parseDropStatement()
     {
@@ -534,7 +613,33 @@ public:
         }
     }
 
-    void printSelectStatement(const SelectStatement *stmt, int indent = 0)
+    void parse()
+    {
+        if (match(TokenType::CREATE))
+        {
+            rewind(); // Go back one token to reprocess CREATE in parseCreateStatement
+            auto stmt = parseCreateStatement();
+            printCreateStatement(*stmt);
+        }
+        else if (match(TokenType::INSERT))
+        {
+            rewind();
+            auto stmt = parseInsertStatement();
+            printInsertStatement(*stmt);
+        }
+        else if (match(TokenType::SELECT))
+        {
+            rewind();
+            auto stmt = parseSelectStatement();
+            printSelectStatement(*stmt);
+        }
+        else
+        {
+            throw std::runtime_error("Unsupported SQL statement or missing statement type (CREATE, INSERT, SELECT)");
+        }
+    }
+
+    void printSelectStatement(const SelectStatement &stmt, int indent = 0)
     {
         auto pad = [indent]()
         { for (int i = 0; i < indent; ++i) std::cout << "  "; };
@@ -544,44 +649,53 @@ public:
 
         pad();
         std::cout << "  Columns:\n";
-        for (const auto &col : stmt->columns)
+        for (const auto &col : stmt.columns)
         {
             pad();
             std::cout << "    - " << col << "\n";
         }
 
         pad();
-        std::cout << "  From: " << stmt->table << "\n";
+        std::cout << "  From: " << stmt.table << "\n";
 
-        if (stmt->whereClause)
+        if (stmt.whereClause)
         {
             pad();
             std::cout << "  Where:\n";
-            printExpression(stmt->whereClause->condition.get(), indent + 2);
+            printExpression(stmt.whereClause->condition.get(), indent + 2);
         }
 
-        if (stmt->limitClause)
+        if (stmt.limitClause)
         {
             pad();
-            std::cout << "  Limit: " << stmt->limitClause->limit << "\n";
+            std::cout << "  Limit: " << stmt.limitClause->limit << "\n";
         }
-    }void printCreateStatement(const CreateStatement &stmt) {
-    std::cout << "CREATE ";
-    if (stmt.isDatabase) {
-        std::cout << "DATABASE ";
-    } else {
-        std::cout << "TABLE ";
     }
+    void printCreateStatement(const CreateStatement &stmt)
+    {
+        std::cout << "CREATE ";
+        if (stmt.isDatabase)
+        {
+            std::cout << "DATABASE ";
+        }
+        else
+        {
+            std::cout << "TABLE ";
+        }
 
-    std::cout << stmt.name << "\n";
+        std::cout << stmt.name << "\n";
 
-    if (!stmt.isDatabase) {
-        for (const auto &col : stmt.columns) {
-            std::cout << "  Column: " << col.name << " Type: " << col.type << "\n";
+        if (!stmt.isDatabase)
+        {
+            for (const auto &col : stmt.columns)
+            {
+                std::cout << "  Column: " << col.name << " Type: " << col.type << "\n";
 
-            for (const auto &constraint : col.constraints) {
-                std::string constraintStr;
-                switch (constraint) {
+                for (const auto &constraint : col.constraints)
+                {
+                    std::string constraintStr;
+                    switch (constraint)
+                    {
                     case ColumnConstraint::NOT_NULL:
                         constraintStr = "NOT NULL";
                         break;
@@ -597,14 +711,27 @@ public:
                     default:
                         constraintStr = "UNKNOWN";
                         break;
+                    }
+                    std::cout << "    Constraint: " << constraintStr << "\n";
                 }
-                std::cout << "    Constraint: " << constraintStr << "\n";
             }
         }
     }
-}
 
-
+    void printInsertStatement(const InsertStatement &stmt)
+    {
+        std::cout << "INSERT INTO " << stmt.tableName << " (\n";
+        for (const auto &col : stmt.columns)
+        {
+            std::cout << "  " << col << "\n";
+        }
+        std::cout << ") VALUES (\n";
+        for (const auto &val : stmt.values)
+        {
+            std::cout << "  " << val << "\n";
+        }
+        std::cout << ");\n";
+    }
 };
 
 #endif
