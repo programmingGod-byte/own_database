@@ -10,11 +10,13 @@ std::string typeToString(TokenType TYPE);
 int main(int argc, char const *argv[])
 {
    string s = R"(
-    SELECT name, age, email 
-    FROM users 
-    WHERE age >= 18 AND status != 'inactive' OR (country = 'USA' AND subscribed = 1) 
-    ORDERBY age 
+ CREATE TABLE Persons (
+    Personid int NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+    LastName varchar(255) NOT NULL,
+    FirstName varchar(255),
+    Age int,
     
+);  
 )";
 
     Lexer lexer(s);
@@ -26,10 +28,10 @@ int main(int argc, char const *argv[])
     }
 
      Parser parser(tokens);
-      std::unique_ptr<SelectStatement> stmt = parser.parseSelectStatement();
+      std::unique_ptr<CreateStatement> stmt = parser.parseCreateStatement();
 
     
-        parser.printSelectStatement(stmt.get());
+        parser.printCreateStatement(*stmt);
 
     return 0;
 }

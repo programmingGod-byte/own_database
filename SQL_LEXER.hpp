@@ -31,7 +31,10 @@ enum class TokenType
     DROP,
     DATABASE,
     ORDERBY,
-    TABLE,
+    AUTO_INCREMENT,
+    NULL_T,UNIQUE,
+    
+     INT, VARCHAR, PRIMARY, KEY,
 
     // Literals
     IDENTIFIER,
@@ -85,7 +88,14 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"drop",TokenType::DROP},
     {"database",TokenType::DATABASE},
     {"orderby",TokenType::ORDERBY},
-    {"table",TokenType::TABLE}
+    {"table",TokenType::TABLE},
+    {"int",TokenType::INT},
+    {"varchar",TokenType::VARCHAR},
+    {"primary",TokenType::PRIMARY},
+    {"key",TokenType::KEY},
+    {"auto_increment",TokenType::AUTO_INCREMENT},
+    {"null",TokenType::NULL_T},
+    {"unique",TokenType::UNIQUE}
 };
 
 static const std::unordered_map<char, TokenType> singleCharTokens = {
@@ -100,7 +110,6 @@ static const std::unordered_map<char, TokenType> singleCharTokens = {
     {';', TokenType::SEMICOLON},
     {'.', TokenType::DOT}
 };
-
 std::string typeToString(TokenType TYPE)
 {
     switch (TYPE)
@@ -122,6 +131,18 @@ std::string typeToString(TokenType TYPE)
     case TokenType::NOT: return "NOT";
     case TokenType::ORDER: return "ORDER";
     case TokenType::BY: return "BY";
+    case TokenType::DROP: return "DROP";           // Added this
+    case TokenType::DATABASE: return "DATABASE";   // Added this
+    case TokenType::ORDERBY: return "ORDERBY";     // Added this
+    case TokenType::AUTO_INCREMENT: return "AUTO_INCREMENT";
+    case TokenType::NULL_T : return "NULL";
+    case TokenType::UNIQUE : return "UNIQUE";
+    
+    // Data types
+    case TokenType::INT: return "INT";             // Added this
+    case TokenType::VARCHAR: return "VARCHAR";     // Added this
+    case TokenType::PRIMARY: return "PRIMARY";     // Added this
+    case TokenType::KEY: return "KEY";             // Added this
 
     // Literals
     case TokenType::IDENTIFIER: return "IDENTIFIER";
@@ -149,6 +170,7 @@ std::string typeToString(TokenType TYPE)
     case TokenType::DOT: return "DOT";
     case TokenType::OPEN_PAREN: return "OPEN_PAREN";
     case TokenType::CLOSE_PAREN: return "CLOSE_PAREN";
+    
 
     // End of file
     case TokenType::END_OF_FILE: return "END_OF_FILE";
@@ -156,7 +178,6 @@ std::string typeToString(TokenType TYPE)
     default: return "UNKNOWN";
     }
 }
-
 struct Token
 {
     TokenType TYPE;

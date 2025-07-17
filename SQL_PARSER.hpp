@@ -26,6 +26,7 @@ enum class ASTNodeType
     LIMIT_CLAUSE,
     WHERE_CLAUSE,
     DROP_STATEMENT,
+    CREATE_STATEMENT
 };
 
 enum class LogicalOperator
@@ -42,6 +43,14 @@ enum class ComparisonOperator
     LESS,
     GREATER_EQUAL,
     LESS_EQUAL
+};
+enum class ColumnConstraint
+{
+    NONE,
+    NOT_NULL,
+    PRIMARY_KEY,
+    UNIQUE,
+    AUTO_INCREMENT
 };
 
 // ==== AST Nodes ====
@@ -137,25 +146,31 @@ struct SelectStatement : public ASTNode
     ASTNodeType getType() const override { return ASTNodeType::SELECT_STATEMENT; }
 };
 
-struct DropStatement:public ASTNode{
+struct DropStatement : public ASTNode
+{
     bool istable;
     std::string name;
-    
-    
-    ASTNodeType getType() const override { return ASTNodeType::DROP_STATEMENT; }
 
+    ASTNodeType getType() const override { return ASTNodeType::DROP_STATEMENT; }
 };
 
-
-
-struct CreateStatement:public ASTNode{
-    bool isDatabase;
+struct ColumnDefinition
+{
     std::string name;
+    std::string type;
+    std::vector<ColumnConstraint> constraints;
 
-    
-    
-    ASTNodeType getType() const override { return ASTNodeType::DROP_STATEMENT; }
+    ColumnDefinition(const std::string &name, const std::string &type)
+        : name(name), type(type) {}
+};
 
+struct CreateStatement : public ASTNode
+{
+    bool isDatabase = false;
+    std::string name;
+    std::vector<ColumnDefinition> columns;
+
+    ASTNodeType getType() const override { return ASTNodeType::CREATE_STATEMENT; }
 };
 
 // ==== Parser ====
@@ -209,32 +224,101 @@ private:
 public:
     Parser(const std::vector<Token *> &tokens) : tokens(tokens) {}
 
+    
+    std::unique_ptr<CreateStatement> parseCreateStatement() {
+    expect(TokenType::CREATE, "Expected CREATE keyword");
+    std::unique_ptr<CreateStatement> stmt = std::make_unique<CreateStatement>();
 
-    std::unique_ptr<DropStatement> parseDropStatement(){
-        expect(TokenType::DROP,"Expected drop keyword");
+    if (match(TokenType::TABLE)) {
+        Token *tableName = expect(TokenType::IDENTIFIER, "Expected table name");
+        stmt->name = tableName->VALUE;
+
+        expect(TokenType::OPEN_PAREN, "Expected '(' after table name");
+
+        while (!match(TokenType::CLOSE_PAREN)) {
+            Token *colName = expect(TokenType::IDENTIFIER, "Expected column name");
+
+            Token *typeToken = current();
+            if (match(TokenType::INT) || match(TokenType::VARCHAR)) {
+                typeToken = previous();
+            } else {
+                throw std::runtime_error("Parse error: Expected column type (int or varchar)");
+            }
+
+            ColumnDefinition column(colName->VALUE, typeToken->VALUE);
+
+            // Handle VARCHAR(255) size syntax
+            if (typeToken->TYPE == TokenType::VARCHAR && match(TokenType::OPEN_PAREN)) {
+                Token *size = expect(TokenType::NUMBER, "Expected size in VARCHAR()");
+                expect(TokenType::CLOSE_PAREN, "Expected ')' after VARCHAR size");
+                column.type += "(" + size->VALUE + ")";
+            }
+
+            // Parse optional constraints
+            while (true) {
+                if (match(TokenType::NOT)) {
+                    expect(TokenType::NULL_T, "Expected NULL after NOT");
+                    column.constraints.push_back(ColumnConstraint::NOT_NULL);
+                } else if (match(TokenType::PRIMARY)) {
+                    expect(TokenType::KEY, "Expected KEY after PRIMARY");
+                    column.constraints.push_back(ColumnConstraint::PRIMARY_KEY);
+                } else if (match(TokenType::AUTO_INCREMENT)) {
+                    column.constraints.push_back(ColumnConstraint::AUTO_INCREMENT);
+                } else if (match(TokenType::UNIQUE)) {
+                    column.constraints.push_back(ColumnConstraint::UNIQUE);
+                } else {
+                    break;
+                }
+            }
+
+            stmt->columns.push_back(column);
+
+            if (match(TokenType::COMMA)) {
+                continue;
+            } else if (peek()->TYPE == TokenType::CLOSE_PAREN) {
+                continue;
+            } else {
+                throw std::runtime_error("Expected ',' or ')' in column list");
+            }
+        }
+    } else if (match(TokenType::DATABASE)) {
+        stmt->isDatabase = true;
+        stmt->name = expect(TokenType::IDENTIFIER, "Expected database name")->VALUE;
+    } else {
+        throw std::runtime_error("Expected TABLE or DATABASE keyword");
+    }
+
+    return stmt;
+}
+
+
+    std::unique_ptr<DropStatement> parseDropStatement()
+    {
+        expect(TokenType::DROP, "Expected drop keyword");
         auto stmt = std::make_unique<DropStatement>();
-        Token * token = advance();
+        Token *token = advance();
         switch (token->TYPE)
         {
-        case TokenType::TABLE:{
-            Token * identifier = expect(TokenType::IDENTIFIER,"not a identifier\n");
+        case TokenType::TABLE:
+        {
+            Token *identifier = expect(TokenType::IDENTIFIER, "not a identifier\n");
             stmt->name = identifier->VALUE;
             stmt->istable = true;
         }
-            
-            break;
-        case TokenType::DATABASE:{
-            Token * identifier = expect(TokenType::IDENTIFIER,"not a identifier\n");
+
+        break;
+        case TokenType::DATABASE:
+        {
+            Token *identifier = expect(TokenType::IDENTIFIER, "not a identifier\n");
             stmt->name = identifier->VALUE;
             stmt->istable = false;
         }
-            
+
         default:
             std::runtime_error("error in drop ");
         }
         return stmt;
     }
-
 
     std::unique_ptr<SelectStatement> parseSelectStatement()
     {
@@ -364,63 +448,91 @@ public:
         throw std::runtime_error("Unexpected token in expression");
     }
 
+    void printExpression(const Expression *expr, int indent)
+    {
+        auto pad = [indent]()
+        { for (int i = 0; i < indent; ++i) std::cout << "  "; };
 
-    void printExpression(const Expression* expr, int indent) {
-    auto pad = [indent]() { for (int i = 0; i < indent; ++i) std::cout << "  "; };
+        if (!expr)
+            return;
 
-    if (!expr) return;
-
-    switch (expr->getType()) {
-        case ASTNodeType::IDENTIFIER: {
-            const auto* id = static_cast<const Identifier*>(expr);
-            pad(); std::cout << "Identifier: " << id->name << "\n";
+        switch (expr->getType())
+        {
+        case ASTNodeType::IDENTIFIER:
+        {
+            const auto *id = static_cast<const Identifier *>(expr);
+            pad();
+            std::cout << "Identifier: " << id->name << "\n";
             break;
         }
-        case ASTNodeType::INT_LITERAL: {
-            const auto* num = static_cast<const IntLiteral*>(expr);
-            pad(); std::cout << "IntLiteral: " << num->value << "\n";
+        case ASTNodeType::INT_LITERAL:
+        {
+            const auto *num = static_cast<const IntLiteral *>(expr);
+            pad();
+            std::cout << "IntLiteral: " << num->value << "\n";
             break;
         }
-        case ASTNodeType::STRING_LITERAL: {
-            const auto* str = static_cast<const StringLiteral*>(expr);
-            pad(); std::cout << "StringLiteral: \"" << str->value << "\"\n";
+        case ASTNodeType::STRING_LITERAL:
+        {
+            const auto *str = static_cast<const StringLiteral *>(expr);
+            pad();
+            std::cout << "StringLiteral: \"" << str->value << "\"\n";
             break;
         }
-        case ASTNodeType::COMPARISON_EXPRESSION: {
-            const auto* comp = static_cast<const ComparisonExpression*>(expr);
-            pad(); std::cout << "ComparisonExpression: ";
+        case ASTNodeType::COMPARISON_EXPRESSION:
+        {
+            const auto *comp = static_cast<const ComparisonExpression *>(expr);
+            pad();
+            std::cout << "ComparisonExpression: ";
 
-            switch (comp->op) {
-                case ComparisonOperator::EQUAL: std::cout << "==\n"; break;
-                case ComparisonOperator::NOT_EQUAL: std::cout << "!=\n"; break;
-                case ComparisonOperator::GREATER: std::cout << ">\n"; break;
-                case ComparisonOperator::LESS: std::cout << "<\n"; break;
-                case ComparisonOperator::GREATER_EQUAL: std::cout << ">=\n"; break;
-                case ComparisonOperator::LESS_EQUAL: std::cout << "<=\n"; break;
+            switch (comp->op)
+            {
+            case ComparisonOperator::EQUAL:
+                std::cout << "==\n";
+                break;
+            case ComparisonOperator::NOT_EQUAL:
+                std::cout << "!=\n";
+                break;
+            case ComparisonOperator::GREATER:
+                std::cout << ">\n";
+                break;
+            case ComparisonOperator::LESS:
+                std::cout << "<\n";
+                break;
+            case ComparisonOperator::GREATER_EQUAL:
+                std::cout << ">=\n";
+                break;
+            case ComparisonOperator::LESS_EQUAL:
+                std::cout << "<=\n";
+                break;
             }
 
             printExpression(comp->left.get(), indent + 1);
             printExpression(comp->right.get(), indent + 1);
             break;
         }
-        case ASTNodeType::LOGICAL_EXPRESSION: {
-            const auto* log = static_cast<const LogicalExpression*>(expr);
-            pad(); std::cout << "LogicalExpression: " << (log->op == LogicalOperator::AND ? "AND" : "OR") << "\n";
+        case ASTNodeType::LOGICAL_EXPRESSION:
+        {
+            const auto *log = static_cast<const LogicalExpression *>(expr);
+            pad();
+            std::cout << "LogicalExpression: " << (log->op == LogicalOperator::AND ? "AND" : "OR") << "\n";
             printExpression(log->left.get(), indent + 1);
             printExpression(log->right.get(), indent + 1);
             break;
         }
-        case ASTNodeType::PARENTHESIZED_EXPRESSION: {
-            const auto* paren = static_cast<const ParenthesizedExpression*>(expr);
-            pad(); std::cout << "ParenthesizedExpression:\n";
+        case ASTNodeType::PARENTHESIZED_EXPRESSION:
+        {
+            const auto *paren = static_cast<const ParenthesizedExpression *>(expr);
+            pad();
+            std::cout << "ParenthesizedExpression:\n";
             printExpression(paren->expression.get(), indent + 1);
             break;
         }
         default:
-            pad(); std::cout << "Unknown Expression Type\n";
+            pad();
+            std::cout << "Unknown Expression Type\n";
+        }
     }
-}
-
 
     void printSelectStatement(const SelectStatement *stmt, int indent = 0)
     {
@@ -453,7 +565,46 @@ public:
             pad();
             std::cout << "  Limit: " << stmt->limitClause->limit << "\n";
         }
+    }void printCreateStatement(const CreateStatement &stmt) {
+    std::cout << "CREATE ";
+    if (stmt.isDatabase) {
+        std::cout << "DATABASE ";
+    } else {
+        std::cout << "TABLE ";
     }
+
+    std::cout << stmt.name << "\n";
+
+    if (!stmt.isDatabase) {
+        for (const auto &col : stmt.columns) {
+            std::cout << "  Column: " << col.name << " Type: " << col.type << "\n";
+
+            for (const auto &constraint : col.constraints) {
+                std::string constraintStr;
+                switch (constraint) {
+                    case ColumnConstraint::NOT_NULL:
+                        constraintStr = "NOT NULL";
+                        break;
+                    case ColumnConstraint::PRIMARY_KEY:
+                        constraintStr = "PRIMARY KEY";
+                        break;
+                    case ColumnConstraint::AUTO_INCREMENT:
+                        constraintStr = "AUTO_INCREMENT";
+                        break;
+                    case ColumnConstraint::UNIQUE:
+                        constraintStr = "UNIQUE";
+                        break;
+                    default:
+                        constraintStr = "UNKNOWN";
+                        break;
+                }
+                std::cout << "    Constraint: " << constraintStr << "\n";
+            }
+        }
+    }
+}
+
+
 };
 
 #endif
