@@ -493,6 +493,12 @@ public:
                 columnArray.push_back(JSONParser::JSONValue(colJson));
             }
 
+            // Step 0: Check if table already exists in globalTableCache
+            if (globalTableCache[currentDatabase].find(stmt->name) != globalTableCache[currentDatabase].end())
+            {
+                throw std::runtime_error("❌ Table '" + stmt->name + "' already exists in DB '" + currentDatabase + "'");
+            }
+
             // Step 2: Create table JSON
             JSONParser::JSONObject tableJson = {
                 {"name", JSONParser::JSONValue(stmt->name)},
@@ -515,7 +521,7 @@ public:
 
             auto &dbObj = std::get<JSONParser::JSONObject>(root.value);
 
-            // Step 4: Append new table to "tables" array
+            // Step 4: Add table to the JSON
             if (dbObj.find("tables") != dbObj.end() &&
                 std::holds_alternative<JSONParser::JSONArray>(dbObj["tables"].value))
             {
@@ -529,7 +535,7 @@ public:
                     JSONParser::JSONValue(tableJson)});
             }
 
-            // Step 5: Save back
+            // Step 5: Save back to file
             parser.clear();
             parser.appendValue(JSONParser::JSONValue(dbObj));
 
@@ -537,6 +543,9 @@ public:
             {
                 throw std::runtime_error("❌ Failed to save DB JSON file");
             }
+
+            // Optional: Update in-memory cache too
+            globalTableCache[currentDatabase][stmt->name] = {}; // You can populate columns later
 
             std::cout << "✅ Table '" << stmt->name << "' added to DB '" << currentDatabase << "' successfully.\n";
         }
@@ -830,6 +839,10 @@ public:
         {
             rewind();
             auto stmt = parseInsertStatement();
+            std::pair<bool, std::string> check = MyUtility::checkIfTableExist(stmt->tableName);
+            if (!check.first)
+                throw std::runtime_error(check.second);
+
             printInsertStatement(*stmt);
         }
         else if (match(TokenType::SELECT))
