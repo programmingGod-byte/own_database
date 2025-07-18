@@ -1,6 +1,6 @@
 [
   {
-    "name": "testing",
+    "name": "test",
     "tables": [
       {
         "columns": [
@@ -25,9 +25,16 @@
             "length": 255,
             "name": "email",
             "type": "varchar"
+          },
+          {
+            "constraints": [
+              "unique"
+            ],
+            "name": "rollno",
+            "type": "int"
           }
         ],
-        "name": "testing"
+        "name": "test"
       }
     ]
   }

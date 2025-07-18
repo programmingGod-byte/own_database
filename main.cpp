@@ -16,9 +16,11 @@ int main(int argc, char const *argv[]) {
     initializePrimaryIndexBtrees();
 
     vector<string> testSQLs = {
-        R"(
+       R"(
+        CREATE DATABASE testing;
+       )", R"(
 
-CREATE TABLE test(
+CREATE TABLE testing(
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255),
     email VARCHAR(255) UNIQUE
